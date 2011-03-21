@@ -29,7 +29,6 @@ public class TweakedCycle extends JavaPlugin {
 
     public void onEnable() {
         reloadWorlds();
-        // EXAMPLE: Custom code, here we just output some info so we can check all is well
         PluginDescriptionFile pdfFile = this.getDescription();
         System.out.println( pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!" );
     }
