@@ -1,8 +1,11 @@
 name: TweakedCycle
 main: tzer0.TweakedCycle.TweakedCycle
-version: 0.2
+version: 0.3
 author: TZer0
 commands:
     tc:
         description: Tweaks day-night cycles.
         usage: /tc
+    tweakedcycle:
+        description: Tweaks day-night cycles.
+        usage: /tweakedcycle
