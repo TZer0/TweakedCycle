@@ -1,6 +1,6 @@
 name: TweakedCycle
 main: tzer0.TweakedCycle.TweakedCycle
-version: 0.3
+version: 0.3.1
 author: TZer0
 commands:
     tc:
