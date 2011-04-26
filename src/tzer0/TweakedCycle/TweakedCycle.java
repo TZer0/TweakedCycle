@@ -112,7 +112,7 @@ public class TweakedCycle extends JavaPlugin {
                 } else {
                     Schedule current = null;
                     for (Schedule sched : schedList) {
-                        if (sched.world.getName().equalsIgnoreCase(args[1])) {
+                        if (sched.world.getName().equalsIgnoreCase(args[1].replaceAll("\\+", " "))) {
                             current = sched;
                             break;
                         }
@@ -123,7 +123,7 @@ public class TweakedCycle extends JavaPlugin {
                         conf.save();
                         sender.sendMessage(ChatColor.GREEN+"Done.");
                     } else {
-                        sender.sendMessage(ChatColor.RED+"Invalid world name!");
+                        sender.sendMessage(ChatColor.RED+String.format("Invalid world name, %s", args[1].replaceAll("\\+", " ")));
                     }
                 } 
                 if (error) {
