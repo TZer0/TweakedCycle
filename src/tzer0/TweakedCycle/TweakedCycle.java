@@ -1,3 +1,6 @@
+/*
+ * 
+ */
 package tzer0.TweakedCycle;
 
 import java.util.LinkedList;
@@ -224,6 +227,8 @@ public class TweakedCycle extends JavaPlugin {
         int []modes;
         int []lengths;
         boolean []reset;
+        int []storm;
+        int []thunder;
         int remaining;
         int current;
         String schedname;
@@ -232,14 +237,41 @@ public class TweakedCycle extends JavaPlugin {
             this.world = world;
             setMode(mode);
         }
+        
+        public void configWeather(String weather, int i) {
+            if (weather.contains("s")) {
+                storm[i] = 2; 
+            } else if (weather.contains("d")) {
+                storm[i] = 1;
+            } else {
+                storm[i] = 0;
+            }
+            if (weather.contains("t")) {
+                thunder[i] = 2;
+            } else if (weather.contains("c")) {
+                thunder[i] = 1;
+            } else {
+                thunder[i] = 0;
+            }
+        }
+        
         public void setMode(String mode) {
             newstate = true;
             String out = "";
+            String weather = "";
+            String []split = mode.toLowerCase().split("-");
+            if (split.length == 2) {
+                weather = split[1];
+                mode = split[0];
+            }
             int i = translateState(mode);
             if (i != -1) {
                 modes = new int[1];
                 lengths = new int[1];
                 reset = new boolean[1];
+                storm = new int[1];
+                thunder = new int[1];
+                configWeather(weather, 0);
                 reset[0] = false;
                 modes[0] = i;
                 if (i <= 2) {
@@ -263,8 +295,8 @@ public class TweakedCycle extends JavaPlugin {
                 }
                 makeSettingsArrays(out);
             }
-            remaining = lengths[0];
-            current = 0;
+            remaining = 0;
+            current = -1;
             setTime(true);
         }
         public int[] makeSettingsArrays(String input) {
@@ -273,9 +305,18 @@ public class TweakedCycle extends JavaPlugin {
             modes = new int[split.length];
             reset = new boolean[split.length];
             lengths = new int[split.length];
+            thunder = new int[split.length];
+            storm = new int[split.length];
             for (int i = 0; i < split.length; i++) {
                 values = split[i].split(":");
                 if (values.length >= 1) {
+                    String weather = "";
+                    String []split2 = split[i].split("-");
+                    if (split2.length == 2) {
+                        values[0] = split2[0];
+                        weather = split2[1];
+                    }
+                    configWeather(weather, i);
                     reset[i] = false;
                     lengths[i] = 1;
                     modes[i] = toInt(values[0]);
@@ -288,6 +329,10 @@ public class TweakedCycle extends JavaPlugin {
                     }
                 } else {
                     modes[i] = 0;
+                    lengths[i] = 1;
+                    reset[i] = false;
+                    thunder[i] = 0;
+                    storm[i] = 0;
                 }
             }
             return modes;
@@ -297,27 +342,52 @@ public class TweakedCycle extends JavaPlugin {
         }
 
         public void setTime(boolean force) {
+            boolean nobroadcast = current == -1;
             if (remaining <= 0) {
                 current = (current + 1)%modes.length;
                 remaining = lengths[current];
                 force = true;
+                if (thunder[current] == 2) {
+                    world.setThundering(true);
+                } else if (thunder[current] == 1) {
+                    world.setThundering(false);
+                }
+                if (storm[current] == 2) {
+                    world.setStorm(true);
+                } else if (storm[current] == 1){
+                    world.setStorm(false);
+                }
             }
-            String ss = "";
-            if (modes[current] != modes[(current+1)%modes.length] && modes[(current+1)%modes.length] != 0) {
-                if (broadcast && checkRemaining(remaining*schedRes)) {
-                    if (modes[(current+1)%modes.length] == 1) {
-                        ss = ChatColor.YELLOW + "Day";
-                    } else if (modes[(current+1)%modes.length] == 2) {
-                        ss = ChatColor.BLUE + "Night";
-                    } else if (modes[(current+1)%modes.length] == 3) {
-                        ss = ChatColor.GOLD + "Dusk";
-                    } else if (modes[(current+1)%modes.length] == 4) {
-                        ss = ChatColor.GOLD + "Dawn";
+            
+            if (!nobroadcast && broadcast && checkRemaining(remaining*schedRes)) {
+                String ns = "";
+                int next = (current+1)%modes.length;
+                if (storm[next] == 2) {
+                    if (thunder[next] == 2) {
+                        ns += ChatColor.BLUE + "Thunderstorm ";
+                    } else if (thunder[next] == 1) {
+                        ns += ChatColor.BLUE + "Storm ";
                     }
-                    for (Player pl : getServer().getOnlinePlayers()) {
-                        if (pl.getWorld() == world) {
-                            pl.sendMessage(String.format("%s in %d seconds!", ss, remaining*schedRes));
-                        }
+                } else if (storm[next] == 1) {
+                    ns += ChatColor.YELLOW + "Clear ";
+                }
+                if (modes[current] != modes[(current+1)%modes.length] && modes[(current+1)%modes.length] != 0) {
+                    if (modes[next] != 0 && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
+                        ns += ChatColor.YELLOW + "and ";
+                    }
+                    if (modes[next] == 1) {
+                        ns += ChatColor.YELLOW + "Day";
+                    } else if (modes[next] == 2) {
+                        ns += ChatColor.BLUE + "Night";
+                    } else if (modes[next] == 3) {
+                        ns += ChatColor.GOLD + "Dusk";
+                    } else if (modes[next] == 4) {
+                        ns += ChatColor.GOLD + "Dawn";
+                    }   
+                }
+                for (Player pl : getServer().getOnlinePlayers()) {
+                    if (pl.getWorld() == world) {
+                        pl.sendMessage(String.format("%s %sin %d seconds!", ns, ChatColor.YELLOW, remaining*schedRes));
                     }
                 }
             }
@@ -351,7 +421,8 @@ public class TweakedCycle extends JavaPlugin {
     public boolean checkMode(String in) {
         char chars[] = in.toCharArray();
         for (int i = 0; i < chars.length; i++) {
-            if (!(Character.isDigit(chars[i]) || chars[i] == ',' || chars[i] == ':' || chars[i] == 'r')) {
+            char c = chars[i];
+            if (!(Character.isDigit(c) || c == ',' || c == ':' || c == 'r' || c == 's' || c == 't' || c == 'd' || c == 'c' || c == '-')) {
                 return false;
             }
         }
