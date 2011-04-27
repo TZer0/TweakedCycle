@@ -342,7 +342,6 @@ public class TweakedCycle extends JavaPlugin {
         }
 
         public void setTime(boolean force) {
-            boolean nobroadcast = current == -1;
             if (remaining <= 0) {
                 current = (current + 1)%modes.length;
                 remaining = lengths[current];
@@ -359,7 +358,7 @@ public class TweakedCycle extends JavaPlugin {
                 }
             }
             
-            if (!nobroadcast && broadcast && checkRemaining(remaining*schedRes)) {
+            if (broadcast && checkRemaining(remaining*schedRes)) {
                 String ns = "";
                 int next = (current+1)%modes.length;
                 if (storm[next] == 2) {
@@ -372,7 +371,7 @@ public class TweakedCycle extends JavaPlugin {
                     ns += ChatColor.YELLOW + "Clear ";
                 }
                 if (modes[current] != modes[(current+1)%modes.length] && modes[(current+1)%modes.length] != 0) {
-                    if (modes[next] != 0 && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
+                    if (modes[next] != 0 && !(ns.length() != 0) && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
                         ns += ChatColor.YELLOW + "and ";
                     }
                     if (modes[next] == 1) {
