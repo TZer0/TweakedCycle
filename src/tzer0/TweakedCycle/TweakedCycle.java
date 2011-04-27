@@ -20,7 +20,7 @@ import com.nijiko.permissions.PermissionHandler;
 import com.nijikokun.bukkit.Permissions.Permissions;
 
 /**
- * Day/night controls!
+ * Time and weather controls!
  *
  * @author TZer0
  */
