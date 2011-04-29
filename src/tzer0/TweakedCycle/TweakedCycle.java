@@ -71,8 +71,8 @@ public class TweakedCycle extends JavaPlugin {
                     }
                 } else {
                     if (!((Player) sender).isOp()) {
-                       sender.sendMessage(ChatColor.RED + "You do not have access to this command.");
-                       return true; 
+                        sender.sendMessage(ChatColor.RED + "You do not have access to this command.");
+                        return true; 
                     }
                 }
             }
@@ -107,7 +107,7 @@ public class TweakedCycle extends JavaPlugin {
                 }
             } else if (args[0].equalsIgnoreCase("reload") || args[0].equalsIgnoreCase("r")) {
                 reloadWorlds();
-                sender.sendMessage(ChatColor.GREEN+"Done");
+                sender.sendMessage(ChatColor.GREEN+"Done.");
             } else if (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("s")) {
                 boolean error = false;
                 if (l != 3) {
@@ -156,7 +156,7 @@ public class TweakedCycle extends JavaPlugin {
                     if (conf.getString("modes." + args[1].toLowerCase()) != null) {
                         conf.removeProperty("modes." + args[1].toLowerCase());
                         conf.save();
-                        
+
                     } else {
                         sender.sendMessage(ChatColor.RED + "Requires a name");
                     }
@@ -237,7 +237,7 @@ public class TweakedCycle extends JavaPlugin {
             this.world = world;
             setMode(mode);
         }
-        
+
         public void configWeather(String weather, int i) {
             if (weather.contains("s")) {
                 storm[i] = 2; 
@@ -254,7 +254,7 @@ public class TweakedCycle extends JavaPlugin {
                 thunder[i] = 0;
             }
         }
-        
+
         public void setMode(String mode) {
             newstate = true;
             String out = "";
@@ -357,7 +357,7 @@ public class TweakedCycle extends JavaPlugin {
                     world.setStorm(false);
                 }
             }
-            
+
             if (broadcast && checkRemaining(remaining*schedRes)) {
                 String ns = "";
                 int next = (current+1)%modes.length;
@@ -384,9 +384,11 @@ public class TweakedCycle extends JavaPlugin {
                         ns += ChatColor.GOLD + "Dawn";
                     }   
                 }
-                for (Player pl : getServer().getOnlinePlayers()) {
-                    if (pl.getWorld() == world) {
-                        pl.sendMessage(String.format("%s %sin %d seconds!", ns, ChatColor.YELLOW, remaining*schedRes));
+                if ((thunder[next] != 0 || storm[next] != 0 || (modes[next] != 0 && modes[current] != modes[(current+1)%modes.length]) )) {
+                    for (Player pl : getServer().getOnlinePlayers()) {
+                        if (pl.getWorld() == world) {
+                            pl.sendMessage(String.format("%s %sin %d seconds!", ns, ChatColor.YELLOW, remaining*schedRes));
+                        }
                     }
                 }
             }
