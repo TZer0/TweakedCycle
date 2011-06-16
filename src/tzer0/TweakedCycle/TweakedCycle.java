@@ -362,15 +362,15 @@ public class TweakedCycle extends JavaPlugin {
                 String ns = "";
                 int next = (current+1)%modes.length;
                 if (storm[next] == 2) {
-                    if (thunder[next] == 2) {
+                    if (thunder[next] == 2 && thunder[next] != thunder[current]) {
                         ns += ChatColor.BLUE + "Thunderstorm ";
-                    } else if (thunder[next] == 1) {
+                    } else if (thunder[next] == 1 && thunder[next] != thunder[current]) {
                         ns += ChatColor.BLUE + "Storm ";
                     }
-                } else if (storm[next] == 1) {
+                } else if (storm[next] == 1 && storm[next] != storm[current]) {
                     ns += ChatColor.YELLOW + "Clear ";
                 }
-                if (modes[current] != modes[(current+1)%modes.length] && modes[(current+1)%modes.length] != 0) {
+                if (modes[current] != modes[next] && modes[next] != 0) {
                     if (modes[next] != 0 && !(ns.length() != 0) && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
                         ns += ChatColor.YELLOW + "and ";
                     }
@@ -384,7 +384,7 @@ public class TweakedCycle extends JavaPlugin {
                         ns += ChatColor.GOLD + "Dawn";
                     }   
                 }
-                if ((thunder[next] != 0 || storm[next] != 0 || (modes[next] != 0 && modes[current] != modes[(current+1)%modes.length]) )) {
+                if (((thunder[next] != 0 && thunder[next] != thunder[current] )|| (storm[next] != 0 && storm[next] != storm[current]) || (modes[next] != 0 && modes[current] != modes[(current+1)%modes.length]) )) {
                     for (Player pl : getServer().getOnlinePlayers()) {
                         if (pl.getWorld() == world) {
                             pl.sendMessage(String.format("%s %sin %d seconds!", ns, ChatColor.YELLOW, remaining*schedRes));
