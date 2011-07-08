@@ -257,31 +257,54 @@ public class TweakedCycle extends JavaPlugin {
 
         public void setMode(String newMode) {
             newstate = true;
+            String out = "";
             String weather = "";
             String mode = "";
             String []split = newMode.toLowerCase().split("-");
             if (split.length == 2) {
                 weather = split[1];
                 mode = split[0];
+            } else {
+                mode = newMode;
             }
             int i = translateState(mode);
             if (i == -1) {
-                i = toInt(mode);
+                i = toInt(mode,-1);
             }
-            modes = new int[1];
-            lengths = new int[1];
-            reset = new boolean[1];
-            storm = new int[1];
-            thunder = new int[1];
-            configWeather(weather, 0);
-            reset[0] = false;
-            modes[0] = i;
-            if (i <= 2) {
-                lengths[0] = 15/schedRes;
-            } else {
-                lengths[0] = 60/schedRes;
+            if (i != -1) {
+                modes = new int[1];
+                lengths = new int[1];
+                reset = new boolean[1];
+                storm = new int[1];
+                thunder = new int[1];
+                configWeather(weather, 0);
+                reset[0] = false;
+                modes[0] = i;
+                if (i <= 2) {
+                    lengths[0] = 15/schedRes;
+                } else {
+                    lengths[0] = 60/schedRes;
+                }
+                schedname = newMode;
+            } else{
+                if (checkInt(mode)) {
+                    out = mode;
+                    int temp = toInt(out);
+                    if (temp > states.length || temp < 0) {
+                        temp = 0;
+                    }
+                    schedname = states[temp];
+                } else {
+                    out = conf.getString("modes." + mode);
+                    if (out == null) {
+                        out = "0";
+                        schedname = "Undefined sched";
+                    } else {
+                        schedname = mode;
+                    }
+                }
+                makeSettingsArrays(out);
             }
-            schedname = newMode;
             remaining = 0;
             current = -1;
             setTime(true);
@@ -426,6 +449,13 @@ public class TweakedCycle extends JavaPlugin {
             out = Integer.parseInt(in);
         }
         return out;
+    }
+    
+    public int toInt(String in, int def) {
+        if (checkInt(in) && !in.equalsIgnoreCase("")) {
+            def = Integer.parseInt(in);
+        }
+        return def;
     }
     /**
      * Check if the string is valid as an int (accepts signs).
