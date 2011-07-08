@@ -255,46 +255,33 @@ public class TweakedCycle extends JavaPlugin {
             }
         }
 
-        public void setMode(String mode) {
+        public void setMode(String newMode) {
             newstate = true;
-            String out = "";
             String weather = "";
-            String []split = mode.toLowerCase().split("-");
+            String mode = "";
+            String []split = newMode.toLowerCase().split("-");
             if (split.length == 2) {
                 weather = split[1];
                 mode = split[0];
             }
             int i = translateState(mode);
-            if (i != -1) {
-                modes = new int[1];
-                lengths = new int[1];
-                reset = new boolean[1];
-                storm = new int[1];
-                thunder = new int[1];
-                configWeather(weather, 0);
-                reset[0] = false;
-                modes[0] = i;
-                if (i <= 2) {
-                    lengths[0] = 15/schedRes;
-                } else {
-                    lengths[0] = 60/schedRes;
-                }
-                schedname = mode;
-            } else{
-                if (checkInt(mode)) {
-                    out = mode;
-                    schedname = states[Integer.parseInt(out)];
-                } else {
-                    out = conf.getString("modes." + mode);
-                    if (out == null) {
-                        out = "0";
-                        schedname = "Undefined sched";
-                    } else {
-                        schedname = mode;
-                    }
-                }
-                makeSettingsArrays(out);
+            if (i == -1) {
+                i = toInt(mode);
             }
+            modes = new int[1];
+            lengths = new int[1];
+            reset = new boolean[1];
+            storm = new int[1];
+            thunder = new int[1];
+            configWeather(weather, 0);
+            reset[0] = false;
+            modes[0] = i;
+            if (i <= 2) {
+                lengths[0] = 15/schedRes;
+            } else {
+                lengths[0] = 60/schedRes;
+            }
+            schedname = newMode;
             remaining = 0;
             current = -1;
             setTime(true);
@@ -346,18 +333,17 @@ public class TweakedCycle extends JavaPlugin {
                 current = (current + 1)%modes.length;
                 remaining = lengths[current];
                 force = true;
-                if (thunder[current] == 2) {
-                    world.setThundering(true);
-                } else if (thunder[current] == 1) {
-                    world.setThundering(false);
-                }
-                if (storm[current] == 2) {
-                    world.setStorm(true);
-                } else if (storm[current] == 1){
-                    world.setStorm(false);
-                }
             }
-
+            if (thunder[current] == 2) {
+                world.setThundering(true);
+            } else if (thunder[current] == 1) {
+                world.setThundering(false);
+            }
+            if (storm[current] == 2) {
+                world.setStorm(true);
+            } else if (storm[current] == 1){
+                world.setStorm(false);
+            }
             if (broadcast && checkRemaining(remaining*schedRes)) {
                 String ns = "";
                 int next = (current+1)%modes.length;
@@ -371,7 +357,8 @@ public class TweakedCycle extends JavaPlugin {
                     ns += ChatColor.YELLOW + "Clear ";
                 }
                 if (modes[current] != modes[next] && modes[next] != 0) {
-                    if (modes[next] != 0 && !(ns.length() != 0) && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
+                    if (modes[next] != 0 && !(ns.length() != 0) && !ns.equalsIgnoreCase("") 
+                            && !ns.equalsIgnoreCase(ChatColor.YELLOW+"clear ")) {
                         ns += ChatColor.YELLOW + "and ";
                     }
                     if (modes[next] == 1) {
@@ -384,7 +371,10 @@ public class TweakedCycle extends JavaPlugin {
                         ns += ChatColor.GOLD + "Dawn";
                     }   
                 }
-                if (((thunder[next] != 0 && thunder[next] != thunder[current] )|| (storm[next] != 0 && storm[next] != storm[current]) || (modes[next] != 0 && modes[current] != modes[(current+1)%modes.length]) )) {
+                if (((thunder[next] != 0 && thunder[next] != thunder[current] )
+                        || (storm[next] != 0 && storm[next] != storm[current]) 
+                        || (modes[next] != 0 && modes[current] != modes[(current+1)%modes.length]) )
+                        && (!ns.equalsIgnoreCase(""))) {
                     for (Player pl : getServer().getOnlinePlayers()) {
                         if (pl.getWorld() == world) {
                             pl.sendMessage(String.format("%s %sin %d seconds!", ns, ChatColor.YELLOW, remaining*schedRes));
@@ -432,7 +422,7 @@ public class TweakedCycle extends JavaPlugin {
 
     public int toInt(String in) {
         int out = 0;
-        if (checkInt(in)) {
+        if (checkInt(in) && !in.equalsIgnoreCase("")) {
             out = Integer.parseInt(in);
         }
         return out;
