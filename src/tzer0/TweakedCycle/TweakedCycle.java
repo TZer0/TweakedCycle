@@ -29,7 +29,6 @@ public class TweakedCycle extends JavaPlugin {
     private LinkedList<Schedule> schedList;
     Configuration conf;
     String[] states = {"normal", "day", "night", "dusk", "dawn"};
-    int schedRes;
     boolean broadcast;
 
     public void onDisable() {
@@ -40,7 +39,6 @@ public class TweakedCycle extends JavaPlugin {
 
     public void onEnable() {
         conf = getConfiguration();
-        schedRes = conf.getInt("resolution", 15);
         broadcast = conf.getBoolean("broadcast", true);
         reloadWorlds();
         PluginDescriptionFile pdfFile = this.getDescription();
@@ -53,14 +51,19 @@ public class TweakedCycle extends JavaPlugin {
         getServer().getScheduler().cancelTasks(this);
         for (World tmp : getServer().getWorlds()) {
             mode = conf.getString("worlds." + tmp.getName(), "0");
-            Schedule sched = new Schedule(mode, tmp);
+            Schedule sched = new Schedule(mode, tmp, this);
             schedList.add(sched);
-            getServer().getScheduler().scheduleAsyncRepeatingTask(this, sched, schedRes*30, schedRes*30);
         } 
     }
+    
+    public int getRes(String world) {
+        return conf.getInt("resolution." + world.toLowerCase(), conf.getInt("resolution.default", 15));
+    }
+    
     public boolean validMode(int mode) {
         return mode < states.length && mode >= 0;
     }
+    
     public boolean onCommand(CommandSender sender, Command cmd, String commandLabel, String[] args){
         if (commandLabel.equalsIgnoreCase("tc") || commandLabel.equalsIgnoreCase("tweakedcycle")) {
             if (sender instanceof Player) {
@@ -88,7 +91,7 @@ public class TweakedCycle extends JavaPlugin {
                 sender.sendMessage(ChatColor.YELLOW+"(l)ist(s)chedules [#] - lists avilable schedules");
                 sender.sendMessage(ChatColor.YELLOW+"(d)elete(s)chedule name - deletes a schedule");
                 sender.sendMessage(ChatColor.YELLOW+"(n)ew(s)chedule name sched - creates a new schedule");
-                sender.sendMessage(ChatColor.YELLOW+"(s)ched(r)es [#] - modifies time-resolution or shows the current one");
+                sender.sendMessage(ChatColor.YELLOW+"(s)ched(r)es [world] [res] - schedres-settings");
                 sender.sendMessage(ChatColor.YELLOW+"(b)road(c)ast - warns players about time-changes");
             } else if (args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("l")) {
                 int page;
@@ -110,27 +113,35 @@ public class TweakedCycle extends JavaPlugin {
                 sender.sendMessage(ChatColor.GREEN+"Done.");
             } else if (args[0].equalsIgnoreCase("set") || args[0].equalsIgnoreCase("s")) {
                 boolean error = false;
-                if (l != 3) {
+                String worldname = "";
+                String schedname = "";
+                if (l >= 3) {
+                    worldname = args[1];
+                    for (int j = 2; j < l-1; j++) {
+                        worldname += " "+args[j];
+                    }
+                    schedname = args[l-1];
+                } else {
                     error = true;
+                }
+                if (error) {
+                    sender.sendMessage(ChatColor.RED+"Requires a world-name and a schedule/time of day");
                 } else {
                     Schedule current = null;
                     for (Schedule sched : schedList) {
-                        if (sched.world.getName().equalsIgnoreCase(args[1].replaceAll("\\+", " "))) {
+                        if (sched.world.getName().equalsIgnoreCase(worldname)) {
                             current = sched;
                             break;
                         }
                     }
                     if (current != null) {
-                        current.setMode(args[2]);
-                        conf.setProperty("worlds."+current.world.getName(), args[2]);
+                        current.setMode(schedname);
+                        conf.setProperty("worlds."+current.world.getName(), schedname);
                         conf.save();
                         sender.sendMessage(ChatColor.GREEN+"Done.");
                     } else {
-                        sender.sendMessage(ChatColor.RED+String.format("Invalid world name, %s", args[1].replaceAll("\\+", " ")));
+                        sender.sendMessage(ChatColor.RED+String.format("Invalid world name, %s",worldname));
                     }
-                } 
-                if (error) {
-                    sender.sendMessage(ChatColor.RED+"Requires a world-name and a schedule/time of day");
                 }
             } else if (args[0].equalsIgnoreCase("newschedule") || args[0].equalsIgnoreCase("ns")) {
                 if (l == 3) {
@@ -191,16 +202,37 @@ public class TweakedCycle extends JavaPlugin {
                 conf.save();
             } else if (args[0].equalsIgnoreCase("schedres") || args[0].equalsIgnoreCase("sr")) {
                 if (l == 1) {
-                    sender.sendMessage("Current time-resolution is " + schedRes);
-                } else if (l == 2) {
-                    int newRes = toInt(args[1]);
+                    sender.sendMessage(ChatColor.GREEN + "Schedule-resolutions (in secs):");
+                    sender.sendMessage(ChatColor.YELLOW + String.format("Default-resolution: %d", conf.getInt("resolution.default", 15)));
+                    for (Schedule sched : schedList) {
+                        sender.sendMessage(ChatColor.YELLOW + String.format("%s: %d", sched.world.getName(), sched.schedRes));
+                    }
+                    
+                } else if (l == 3) {
+                    int newRes = toInt(args[2]);
                     if (newRes >= 1) {
-                        schedRes = newRes;
+                        String cmp = args[1].toLowerCase();
+                        boolean found = false;
+                        for (Schedule sched : schedList) {
+                            if (sched.world.getName().equalsIgnoreCase(cmp)) {
+                                found = true;
+                            }
+                        }
+                        if (cmp.equalsIgnoreCase("default")) {
+                            found = true;
+                        }
+                        if (!found) {
+                            sender.sendMessage(ChatColor.RED + "No such world: " + args[1]);
+                        }
                         sender.sendMessage(ChatColor.GREEN + "Resolution set to " + newRes);
-                        conf.setProperty("resolution", newRes);
+                        conf.setProperty("resolution." + cmp, newRes);
                         conf.save();
                         reloadWorlds();
+                    } else {
+                        sender.sendMessage(ChatColor.RED + "Resolution must be at least 1 s");
                     }
+                } else {
+                    sender.sendMessage(ChatColor.RED + "To see resolutions: /tc sr, to set: /tc sr worldname res");
                 }
             }
             return true;
@@ -224,17 +256,17 @@ public class TweakedCycle extends JavaPlugin {
     }
     class Schedule extends Thread {
         World world;
-        int []modes;
-        int []lengths;
         boolean []reset;
-        int []storm;
-        int []thunder;
-        int remaining;
-        int current;
+        int []storm, thunder, modes, lengths; 
+        int remaining, current, task, schedRes;
         String schedname;
         boolean newstate;
-        public Schedule(String mode, World world) {
+        TweakedCycle plugin;
+        public Schedule(String mode, World world, TweakedCycle plugin) {
+            task = -1;
             this.world = world;
+            this.plugin = plugin;
+            reload();
             setMode(mode);
         }
 
@@ -309,6 +341,15 @@ public class TweakedCycle extends JavaPlugin {
             current = -1;
             setTime(true);
         }
+        
+        public void reload() {
+            if (task != -1) {
+                getServer().getScheduler().cancelTask(task);
+            }
+            schedRes = getRes(world.getName());
+            task = getServer().getScheduler().scheduleAsyncRepeatingTask(plugin, this, schedRes*30, schedRes*30);
+        }
+        
         public int[] makeSettingsArrays(String input) {
             String []split = input.split(",");
             String []values;
@@ -367,7 +408,7 @@ public class TweakedCycle extends JavaPlugin {
             } else if (storm[current] == 1){
                 world.setStorm(false);
             }
-            if (broadcast && checkRemaining(remaining*schedRes)) {
+            if (broadcast && checkRemaining(remaining*schedRes, world.getName())) {
                 String ns = "";
                 int next = (current+1)%modes.length;
                 if (storm[next] == 2) {
@@ -411,22 +452,22 @@ public class TweakedCycle extends JavaPlugin {
             }
             newstate = false;
             if (modes[current] ==  1) {
-                world.setFullTime(5775);
+                world.setTime(5775);
             } else if (modes[current] ==  2) {
-                world.setFullTime(17775);
+                world.setTime(17775);
             } else if (modes[current] ==  3) {
-                world.setFullTime(11975);
+                world.setTime(11975);
             } else if (modes[current] ==  4) {
-                world.setFullTime(22900);
+                world.setTime(22900);
             }
         }
         public String getMode() {
             return schedname;
         }
     }
-    public boolean checkRemaining(int in) {
+    public boolean checkRemaining(int in, String world) {
         for (int i = 1; i < 5; i*=2) {
-            if (in <= i*15 && in > i*15-schedRes) {
+            if (in <= i*15 && in > i*15-getRes(world)) {
                 return true;
             }
         }
