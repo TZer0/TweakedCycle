@@ -264,6 +264,14 @@ public class TweakedCycle extends JavaPlugin {
                         if (rel != null) {
                             rel.reload();
                         }
+                    } else if (newRes == 0) {
+                        if (args[1].equalsIgnoreCase("default")) {
+                            sender.sendMessage(ChatColor.RED + "Default resolution cannot be set to default... nice try though.");
+                            return true;
+                        }
+                        conf.removeProperty("resolution."+args[1].toLowerCase());
+                        conf.save();
+                        sender.sendMessage(ChatColor.GREEN + "Resolution set to default");
                     } else {
                         sender.sendMessage(ChatColor.RED + "Resolution must be at least 1 s");
                     }
