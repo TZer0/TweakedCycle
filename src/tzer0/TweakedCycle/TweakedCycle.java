@@ -31,6 +31,7 @@ public class TweakedCycle extends JavaPlugin {
     Configuration conf;
     final String[] states = {"normal", "day", "night", "dusk", "dawn", "real"};
     boolean broadcast;
+    int shiftTime;
 
     public void onDisable() {
         schedList = new LinkedList<Schedule>();
@@ -45,6 +46,7 @@ public class TweakedCycle extends JavaPlugin {
         PluginDescriptionFile pdfFile = this.getDescription();
         setupPermissions();
         System.out.println( pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!" );
+        shiftTime = conf.getInt("shiftTime", 0);
         getServer().getScheduler().scheduleAsyncDelayedTask(this, new InitialLoader(), 600);
         
     }
@@ -106,6 +108,21 @@ public class TweakedCycle extends JavaPlugin {
                 sender.sendMessage(ChatColor.YELLOW+"(n)ew(s)chedule name sched - creates a new schedule");
                 sender.sendMessage(ChatColor.YELLOW+"(s)ched(r)es [world] [res] - schedres-settings");
                 sender.sendMessage(ChatColor.YELLOW+"(b)road(c)ast - warns players about time-changes");
+                sender.sendMessage(ChatColor.YELLOW+"(s)hift(t)ime");
+            } else if (args[0].equalsIgnoreCase("shifttime") || args[0].equalsIgnoreCase("st")) {
+                if (l == 2) {
+                    int ntime = 0;
+                    try {
+                        ntime = Integer.parseInt(args[1]);
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage(ChatColor.RED + "Invalid number format");
+                        return true;
+                    }
+                    shiftTime = ntime;
+                    conf.setProperty("shiftTime", ntime);
+                    conf.save();
+                }
+                sender.sendMessage(ChatColor.GREEN + String.format("Time is shifted by %d hours.", conf.getInt("shiftTime", 0)));
             } else if (args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("l")) {
                 int page;
                 if (l == 2) {
@@ -494,7 +511,7 @@ public class TweakedCycle extends JavaPlugin {
                 world.setTime(22900);
             } else if (modes[current] == 5) {
                 Calendar cal = Calendar.getInstance();
-                world.setTime((long) ((cal.get(Calendar.HOUR)*1000 + cal.get(Calendar.MINUTE)*16.66 + cal.get(Calendar.SECOND)*0.277)+4000)%24000);
+                world.setTime((long) ((cal.get(Calendar.HOUR)*1000 + cal.get(Calendar.MINUTE)*16.66 + cal.get(Calendar.SECOND)*0.277)+4000)%24000 + shiftTime*1000);
             }
         }
         public String getMode() {
