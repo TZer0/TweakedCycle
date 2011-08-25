@@ -3,6 +3,7 @@
  */
 package tzer0.TweakedCycle;
 
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -28,7 +29,7 @@ public class TweakedCycle extends JavaPlugin {
     public PermissionHandler permissions;
     private LinkedList<Schedule> schedList;
     Configuration conf;
-    String[] states = {"normal", "day", "night", "dusk", "dawn"};
+    final String[] states = {"normal", "day", "night", "dusk", "dawn", "real"};
     boolean broadcast;
 
     public void onDisable() {
@@ -44,11 +45,14 @@ public class TweakedCycle extends JavaPlugin {
         PluginDescriptionFile pdfFile = this.getDescription();
         setupPermissions();
         System.out.println( pdfFile.getName() + " version " + pdfFile.getVersion() + " is enabled!" );
+        getServer().getScheduler().scheduleAsyncDelayedTask(this, new InitialLoader(), 600);
+        
     }
     public void reloadWorlds() {
         String mode;
         schedList = new LinkedList<Schedule>();
         getServer().getScheduler().cancelTasks(this);
+        schedList.clear();
         for (World tmp : getServer().getWorlds()) {
             mode = conf.getString("worlds." + tmp.getName(), "0");
             Schedule sched = new Schedule(mode, tmp, this);
@@ -57,7 +61,16 @@ public class TweakedCycle extends JavaPlugin {
     }
     
     public int getRes(String world) {
-        return conf.getInt("resolution." + world.toLowerCase(), conf.getInt("resolution.default", 15));
+        int res = conf.getInt("resolution." + world.toLowerCase(), conf.getInt("resolution.default", 15));
+        if (res < 0) {
+            res = 1;
+        }
+        return res;
+    }
+    
+    public void setRes(String world, int res) {
+        conf.setProperty("resolution." + world.toLowerCase(), res);
+        conf.save();
     }
     
     public boolean validMode(int mode) {
@@ -87,7 +100,7 @@ public class TweakedCycle extends JavaPlugin {
                 sender.sendMessage(ChatColor.YELLOW+"General usage:");
                 sender.sendMessage(ChatColor.YELLOW+"(r)eload - reloads worlds");
                 sender.sendMessage(ChatColor.YELLOW+"(l)ist - gives you a list of worlds");
-                sender.sendMessage(ChatColor.YELLOW+"(s)et worldname mode(0,1,2,3,4/normal,day,night,dusk,dawn,schedule)");
+                sender.sendMessage(ChatColor.YELLOW+"(s)et worldname mode(0,1,2,3,4,5/normal,day,night,dusk,dawn,real OR schedule)");
                 sender.sendMessage(ChatColor.YELLOW+"(l)ist(s)chedules [#] - lists avilable schedules");
                 sender.sendMessage(ChatColor.YELLOW+"(d)elete(s)chedule name - deletes a schedule");
                 sender.sendMessage(ChatColor.YELLOW+"(n)ew(s)chedule name sched - creates a new schedule");
@@ -146,7 +159,7 @@ public class TweakedCycle extends JavaPlugin {
             } else if (args[0].equalsIgnoreCase("newschedule") || args[0].equalsIgnoreCase("ns")) {
                 if (l == 3) {
                     String translated = args[2].replace(":1,", ",").replaceAll("day", "1")
-                    .replaceAll("night", "2").replaceAll("dusk", "3").replaceAll("dawn", "4");
+                    .replaceAll("night", "2").replaceAll("dusk", "3").replaceAll("dawn", "4").replaceAll("real", "5");
                     if (checkMode(translated)) {
                         conf.setProperty("modes."+args[1], translated);
                         conf.save();
@@ -194,9 +207,9 @@ public class TweakedCycle extends JavaPlugin {
             } else if (args[0].equalsIgnoreCase("broadcast") || args[0].equalsIgnoreCase("bc")) {
                 broadcast = !broadcast;
                 if (broadcast) {
-                    sender.sendMessage(ChatColor.GREEN + "Day-change warnings have been turned on!");
+                    sender.sendMessage(ChatColor.GREEN + "Time- and weather-change warnings have been turned on!");
                 } else {
-                    sender.sendMessage(ChatColor.GREEN + "Day-change warnings have been turned off!");
+                    sender.sendMessage(ChatColor.GREEN + "Time- and weather-change warnings have been turned off!");
                 }
                 conf.setProperty("broadcast", broadcast);
                 conf.save();
@@ -213,9 +226,12 @@ public class TweakedCycle extends JavaPlugin {
                     if (newRes >= 1) {
                         String cmp = args[1].toLowerCase();
                         boolean found = false;
+                        Schedule rel = null;
                         for (Schedule sched : schedList) {
                             if (sched.world.getName().equalsIgnoreCase(cmp)) {
+                                rel = sched;
                                 found = true;
+                                break;
                             }
                         }
                         if (cmp.equalsIgnoreCase("default")) {
@@ -223,11 +239,14 @@ public class TweakedCycle extends JavaPlugin {
                         }
                         if (!found) {
                             sender.sendMessage(ChatColor.RED + "No such world: " + args[1]);
+                            return true;
                         }
                         sender.sendMessage(ChatColor.GREEN + "Resolution set to " + newRes);
                         conf.setProperty("resolution." + cmp, newRes);
                         conf.save();
-                        reloadWorlds();
+                        if (rel != null) {
+                            rel.reload();
+                        }
                     } else {
                         sender.sendMessage(ChatColor.RED + "Resolution must be at least 1 s");
                     }
@@ -312,10 +331,16 @@ public class TweakedCycle extends JavaPlugin {
                 configWeather(weather, 0);
                 reset[0] = false;
                 modes[0] = i;
+                if (i == 5) {
+                    setRes(world.getName(), 1);
+                }
                 if (i <= 2) {
-                    lengths[0] = 15/schedRes;
+                    lengths[0] = (int) 15./schedRes;
                 } else {
-                    lengths[0] = 60/schedRes;
+                    lengths[0] = (int) 60./schedRes;
+                }
+                if (lengths[0] < 1) {
+                    lengths[0] = 1;
                 }
                 schedname = newMode;
             } else{
@@ -370,7 +395,12 @@ public class TweakedCycle extends JavaPlugin {
                     configWeather(weather, i);
                     reset[i] = false;
                     lengths[i] = 1;
-                    modes[i] = toInt(values[0]);
+                    int tmp = translateState(values[0]);
+                    if (tmp == -1) {
+                        modes[i] = toInt(values[0]);                        
+                    } else {
+                        modes[i] = tmp;
+                    }
                     if (values.length == 2) {
                         lengths[i] = toInt(values[1].replace("r", ""));
                         reset[i] = values[1].contains("r");
@@ -396,6 +426,9 @@ public class TweakedCycle extends JavaPlugin {
             if (remaining <= 0) {
                 current = (current + 1)%modes.length;
                 remaining = lengths[current];
+                force = true;
+            }
+            if (modes[current] == 5) {
                 force = true;
             }
             if (thunder[current] == 2) {
@@ -453,12 +486,15 @@ public class TweakedCycle extends JavaPlugin {
             newstate = false;
             if (modes[current] ==  1) {
                 world.setTime(5775);
-            } else if (modes[current] ==  2) {
+            } else if (modes[current] == 2) {
                 world.setTime(17775);
-            } else if (modes[current] ==  3) {
+            } else if (modes[current] == 3) {
                 world.setTime(11975);
-            } else if (modes[current] ==  4) {
+            } else if (modes[current] == 4) {
                 world.setTime(22900);
+            } else if (modes[current] == 5) {
+                Calendar cal = Calendar.getInstance();
+                world.setTime((long) ((cal.get(Calendar.HOUR)*1000 + cal.get(Calendar.MINUTE)*16.66 + cal.get(Calendar.SECOND)*0.277)+4000)%24000);
             }
         }
         public String getMode() {
@@ -526,6 +562,11 @@ public class TweakedCycle extends JavaPlugin {
                 System.out.println(ChatColor.YELLOW
                         + "Permissons not detected - defaulting to OP!");
             }
+        }
+    }
+    class InitialLoader extends Thread {
+        public void start() {
+            reloadWorlds();
         }
     }
 }
